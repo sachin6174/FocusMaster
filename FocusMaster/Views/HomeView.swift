@@ -20,6 +20,35 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 20) {
+                HStack {
+                    Text("Focus Master")
+                        .font(.largeTitle)
+                        .fontWeight(.bold)
+                    
+                    Spacer()
+                    
+                    NavigationLink(destination: ProfileView(userManager: userManager)) {
+                        VStack(spacing: 6) {
+                            Image(systemName: "person.circle.fill")
+                                .font(.system(size: 40))
+                                .foregroundColor(.blue)
+                            Text("See Badges")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.blue)
+                        }
+                        .padding(.top, 5)
+                        .padding(.bottom, 8)
+                        .padding(.horizontal)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.blue.opacity(0.1))
+                        )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                .padding(.horizontal)
+                .padding(.top, 5)  // Reduced top padding from 10 to 5
+
                 if let userName = userManager.currentUser?.name {
                     Text("Welcome, \(userName)")
                         .font(.headline)
@@ -33,8 +62,7 @@ struct HomeView: View {
                         .font(.title)
                         .padding()
 
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20)
-                    {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
                         ForEach(FocusMode.allCases, id: \.self) { mode in
                             FocusModeButton(
                                 mode: mode,
@@ -61,17 +89,8 @@ struct HomeView: View {
                     }
                 }
             }
-            .navigationTitle("Focus Master")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink(destination: ProfileView(userManager: userManager)) {
-                        Image(systemName: "person.circle")
-                            .font(.title2)
-                    }
-                }
-            }
-            .frame(maxWidth: 600)  // Limit maximum width
-            .frame(maxWidth: .infinity)  // Center horizontally
+            .frame(maxWidth: 600)
+            .frame(maxWidth: .infinity)
         }
         .onChange(of: userManager.currentUser) { _, newUser in
             focusViewModel.updateUser(newUser)
