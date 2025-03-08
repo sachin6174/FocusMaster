@@ -18,7 +18,7 @@ struct HomeView: View {
     }
 
     var body: some View {
-        NavigationView {
+        NavigationStack {
             VStack(spacing: 20) {
                 if let userName = userManager.currentUser?.name {
                     Text("Welcome, \(userName)")
@@ -70,6 +70,8 @@ struct HomeView: View {
                     }
                 }
             }
+            .frame(maxWidth: 600)  // Limit maximum width
+            .frame(maxWidth: .infinity)  // Center horizontally
         }
         .onChange(of: userManager.currentUser) { _, newUser in
             focusViewModel.updateUser(newUser)
