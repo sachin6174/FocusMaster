@@ -20,6 +20,7 @@ class FocusViewModel: ObservableObject {
     private let persistenceController: PersistenceController
     private var lastPointTime: Date?
     private var currentUser: User?
+    private let secondsToChangeBadgesAndPoints: Double  = 120
 
     init(persistenceController: PersistenceController = .shared, user: User? = nil) {
         self.persistenceController = persistenceController
@@ -71,7 +72,7 @@ class FocusViewModel: ObservableObject {
             lastPointTime = currentTime
         }
 
-        if let last = lastPointTime, currentTime.timeIntervalSince(last) >= 120 {
+        if let last = lastPointTime, currentTime.timeIntervalSince(last) >= secondsToChangeBadgesAndPoints {
             awardPoint()
             lastPointTime = currentTime
         }
@@ -94,31 +95,42 @@ class FocusViewModel: ObservableObject {
                 let userInContext = try? context.existingObject(with: userObjectID) as? User
             else { return }
 
+            // Create and configure badge
             let badge = Badge(context: context)
             badge.id = UUID()
             let randomBadge = BadgeType.randomBadge()
             badge.type = randomBadge.type
             badge.emoji = randomBadge.emoji
 
+            // Update session points
+            let newPoints = sessionInContext.points + 1
+            sessionInContext.points = newPoints
             sessionInContext.addToBadges(badge)
-            sessionInContext.points += 1
+            badge.session = sessionInContext
 
+            // Update user total points
+            let newTotalPoints = userInContext.totalPoints + 1
+            userInContext.totalPoints = newTotalPoints
+            userInContext.addToBadges(badge)
             badge.user = userInContext
-            userInContext.totalPoints += 1
 
             do {
                 try context.save()
-                // Ensure changes are reflected in view context
-                DispatchQueue.main.async {
-                    self.persistenceController.container.viewContext.refresh(
-                        user, mergeChanges: true)
+
+                DispatchQueue.main.async { [weak self] in
+                    // Update the UI points counter
+                    self?.points = Int(newPoints)
+
+                    // Refresh the current user in main context to update stats
+                    if let mainContext = self?.persistenceController.container.viewContext,
+                        let refreshedUser = try? mainContext.existingObject(with: userObjectID)
+                            as? User
+                    {
+                        self?.currentUser = refreshedUser
+                    }
                 }
             } catch {
                 print("Error saving context: \(error)")
-            }
-
-            DispatchQueue.main.async {
-                self.points += 1
             }
         }
     }

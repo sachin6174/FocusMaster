@@ -95,7 +95,8 @@ struct ProfileView: View {
     }
 
     private var totalPoints: Int {
-        userManager.currentUser?.totalPoints as? Int ?? 0
+        let sessions = userManager.currentUser?.sessions?.allObjects as? [Session] ?? []
+        return sessions.reduce(0) { $0 + Int($1.points) }
     }
 
     private var totalBadges: Int {
