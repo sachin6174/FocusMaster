@@ -10,7 +10,11 @@ import SwiftUI
 @main
 struct FocusMasterApp: App {
     let persistenceController = PersistenceController.shared
-
+    
+    init() {
+       DebugLogger.shared.log(message: "Starting App")
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()

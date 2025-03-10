@@ -12,7 +12,7 @@ struct PersistenceController {
 
     let container: NSPersistentContainer
 
-    init() {
+    private init() {
         container = NSPersistentContainer(name: "FocusMaster")
 
         // Configure the persistent store
