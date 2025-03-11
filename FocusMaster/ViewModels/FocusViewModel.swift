@@ -25,7 +25,17 @@ class FocusViewModel: ObservableObject {
     init(persistenceController: PersistenceController = .shared, user: User? = nil) {
         self.persistenceController = persistenceController
         self.currentUser = user
-        restoreSession()
+    }
+
+    func hasValidSavedSession() -> Bool {
+        guard let state = SessionStateManager.shared.loadSession(),
+            let user = currentUser,
+            let userId = user.id,
+            state.userID == userId
+        else {
+            return false
+        }
+        return true
     }
 
     func selectMode(_ mode: FocusMode) {
@@ -72,10 +82,13 @@ class FocusViewModel: ObservableObject {
             lastPointTime = currentTime
         }
 
-        if let last = lastPointTime, currentTime.timeIntervalSince(last) >= secondsToChangeBadgesAndPoints {
+        if let last = lastPointTime,
+            currentTime.timeIntervalSince(last) >= secondsToChangeBadgesAndPoints
+        {
             awardPoint()
             lastPointTime = currentTime
         }
+        saveSessionState()
     }
 
     private func awardPoint() {
@@ -135,8 +148,50 @@ class FocusViewModel: ObservableObject {
         }
     }
 
-    private func restoreSession() {
-        // Implement session restoration logic
+    private func saveSessionState() {
+        guard let session = currentSession,
+            let mode = currentMode,
+            let user = currentUser
+        else { return }
+
+        let state = SessionState(
+            mode: mode.rawValue,
+            elapsedTime: elapsedTime,
+            points: points,
+            sessionID: session.id ?? UUID(),
+            startTime: session.startTime ?? Date(),
+            userID: user.id ?? UUID()
+        )
+        SessionStateManager.shared.saveSession(state)
+    }
+
+    func restoreSession() {
+        guard let state = SessionStateManager.shared.loadSession(),
+            let user = currentUser,
+            let userId = user.id,
+            state.userID == userId
+        else { return }
+
+        let context = persistenceController.backgroundContext()
+
+        context.perform {
+            let session = Session(context: context)
+            session.id = state.sessionID
+            session.mode = state.mode
+            session.startTime = state.startTime
+            session.points = Int64(state.points)
+            session.user = try? context.existingObject(with: user.objectID) as? User
+
+            try? context.save()
+
+            DispatchQueue.main.async {
+                self.currentMode = FocusMode(rawValue: state.mode)
+                self.currentSession = session
+                self.elapsedTime = state.elapsedTime
+                self.points = state.points
+                self.startTimer()
+            }
+        }
     }
 
     func stopFocus() {
@@ -171,6 +226,7 @@ class FocusViewModel: ObservableObject {
                 self.lastPointTime = nil
             }
         }
+        SessionStateManager.shared.clearSession()
     }
 
     func updateUser(_ user: User?) {

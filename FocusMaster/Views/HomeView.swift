@@ -10,6 +10,7 @@ import SwiftUI
 struct HomeView: View {
     @StateObject private var focusViewModel: FocusViewModel
     @ObservedObject var userManager: UserManager
+    @State private var hasSavedSession = false
 
     init(userManager: UserManager) {
         self.userManager = userManager
@@ -24,9 +25,9 @@ struct HomeView: View {
                     Text("Focus Master")
                         .font(.largeTitle)
                         .fontWeight(.bold)
-                    
+
                     Spacer()
-                    
+
                     NavigationLink(destination: ProfileView(userManager: userManager)) {
                         VStack(spacing: 6) {
                             Image(systemName: "person.circle.fill")
@@ -58,11 +59,26 @@ struct HomeView: View {
                 if focusViewModel.currentMode != nil {
                     FocusView(focusViewModel: focusViewModel)
                 } else {
+                    if hasSavedSession && focusViewModel.hasValidSavedSession() {
+                        Button(action: {
+                            focusViewModel.restoreSession()
+                        }) {
+                            Text("Resume Previous Session")
+                                .fontWeight(.bold)
+                                .foregroundColor(.white)
+                                .frame(width: 200, height: 50)
+                                .background(Color.orange)
+                                .cornerRadius(10)
+                        }
+                        .padding(.bottom, 20)
+                    }
+
                     Text("Choose Your Focus Mode")
                         .font(.title)
                         .padding()
 
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20) {
+                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 20)
+                    {
                         ForEach(FocusMode.allCases, id: \.self) { mode in
                             FocusModeButton(
                                 mode: mode,
@@ -91,6 +107,9 @@ struct HomeView: View {
             }
             .frame(maxWidth: 600)
             .frame(maxWidth: .infinity)
+        }
+        .onAppear {
+            hasSavedSession = SessionStateManager.shared.loadSession() != nil
         }
         .onChange(of: userManager.currentUser) { _, newUser in
             focusViewModel.updateUser(newUser)
