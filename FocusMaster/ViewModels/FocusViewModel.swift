@@ -20,7 +20,7 @@ class FocusViewModel: ObservableObject {
     private let persistenceController: PersistenceController
     private var lastPointTime: Date?
     private var currentUser: User?
-    private let secondsToChangeBadgesAndPoints: Double  = 120
+    private let secondsToChangeBadgesAndPoints: Double = 120
 
     init(persistenceController: PersistenceController = .shared, user: User? = nil) {
         self.persistenceController = persistenceController
@@ -201,6 +201,14 @@ class FocusViewModel: ObservableObject {
             let user = currentUser
         else { return }
 
+        // Don't save if duration is 0
+        if elapsedTime == 0 {
+            context.delete(session)
+            try? context.save()
+            resetState()
+            return
+        }
+
         let sessionObjectID = session.objectID
         let userObjectID = user.objectID
 
@@ -229,6 +237,20 @@ class FocusViewModel: ObservableObject {
         SessionStateManager.shared.clearSession()
     }
 
+    // Add helper method for resetting state
+    private func resetState() {
+        DispatchQueue.main.async {
+            self.timer?.invalidate()
+            self.timer = nil
+            self.currentMode = nil
+            self.currentSession = nil
+            self.elapsedTime = 0
+            self.points = 0
+            self.lastPointTime = nil
+        }
+        SessionStateManager.shared.clearSession()
+    }
+
     func updateUser(_ user: User?) {
         self.currentUser = user
         // Reset current session if user changes
@@ -244,7 +266,15 @@ class FocusViewModel: ObservableObject {
         let sessionObjectID = session.objectID
 
         context.perform {
-            if let sessionToDelete = try? context.existingObject(with: sessionObjectID) {
+            if let sessionToDelete = try? context.existingObject(with: sessionObjectID) as? Session
+            {
+                // Delete associated badges first
+                if let badges = sessionToDelete.badges as? Set<Badge> {
+                    for badge in badges {
+                        context.delete(badge)
+                    }
+                }
+                // Then delete the session
                 context.delete(sessionToDelete)
                 try? context.save()
             }

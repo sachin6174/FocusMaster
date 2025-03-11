@@ -63,7 +63,22 @@ class UserManager: ObservableObject {
         let sessionID = session.objectID
 
         context.perform {
-            guard let sessionToDelete = try? context.existingObject(with: sessionID) else { return }
+            guard let sessionToDelete = try? context.existingObject(with: sessionID) as? Session
+            else { return }
+
+            // Delete associated badges first
+            if let badges = sessionToDelete.badges as? Set<Badge> {
+                for badge in badges {
+                    let points = sessionToDelete.points
+                    // Update user's total points by subtracting session points
+                    if let user = sessionToDelete.user {
+                        user.totalPoints -= points
+                    }
+                    context.delete(badge)
+                }
+            }
+
+            // Then delete the session
             context.delete(sessionToDelete)
             try? context.save()
 
@@ -71,8 +86,8 @@ class UserManager: ObservableObject {
             if let currentUserID = self.currentUser?.objectID {
                 DispatchQueue.main.async {
                     self.currentUser =
-                        try? self.persistenceController.container.viewContext.existingObject(
-                            with: currentUserID) as? User
+                        try? self.persistenceController.container.viewContext
+                        .existingObject(with: currentUserID) as? User
                 }
             }
         }
